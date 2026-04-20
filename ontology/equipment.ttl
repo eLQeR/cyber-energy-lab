@@ -1,0 +1,64 @@
+@prefix lab:  <http://lab.example/ontology#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+<http://lab.example/ontology> a owl:Ontology ;
+    rdfs:label "Cyber-Energy Lab Equipment Ontology" .
+
+# ─── Класи ─────────────────────────────────────────────────────────────
+lab:Equipment        a owl:Class ; rdfs:label "Обладнання" .
+lab:HeatPump         a owl:Class ; rdfs:subClassOf lab:Equipment ;
+                     rdfs:label "Тепловий насос" .
+lab:AirToWaterHP     a owl:Class ; rdfs:subClassOf lab:HeatPump ;
+                     rdfs:label "Повітря-вода" .
+lab:Component        a owl:Class ; rdfs:label "Компонент" .
+lab:Compressor       a owl:Class ; rdfs:subClassOf lab:Component .
+lab:Evaporator       a owl:Class ; rdfs:subClassOf lab:Component .
+lab:Condenser        a owl:Class ; rdfs:subClassOf lab:Component .
+lab:OperatingMode    a owl:Class ; rdfs:label "Режим роботи" .
+lab:TechnicalSpec    a owl:Class ; rdfs:label "Технічна характеристика" .
+
+# ─── Властивості ───────────────────────────────────────────────────────
+lab:hasComponent     a owl:ObjectProperty ;
+                     rdfs:domain lab:Equipment ;
+                     rdfs:range  lab:Component .
+lab:hasOperatingMode a owl:ObjectProperty ;
+                     rdfs:domain lab:Equipment ;
+                     rdfs:range  lab:OperatingMode .
+lab:hasSpec          a owl:ObjectProperty ;
+                     rdfs:domain lab:Equipment ;
+                     rdfs:range  lab:TechnicalSpec .
+
+lab:nominalPowerKw   a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:maxFlowTempC     a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:minFlowTempC     a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:minCOP           a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:maxPowerKw       a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:manufacturer     a owl:DatatypeProperty ; rdfs:range xsd:string .
+lab:model            a owl:DatatypeProperty ; rdfs:range xsd:string .
+
+# ─── Екземпляри ────────────────────────────────────────────────────────
+lab:heating_mode  a lab:OperatingMode ; rdfs:label "Обігрів" .
+lab:cooling_mode  a lab:OperatingMode ; rdfs:label "Охолодження" .
+lab:dhw_mode      a lab:OperatingMode ; rdfs:label "ГВП" .
+lab:standby_mode  a lab:OperatingMode ; rdfs:label "Очікування" .
+
+lab:ecodan_01 a lab:AirToWaterHP ;
+    rdfs:label         "Mitsubishi EcoDan (лабораторний)" ;
+    lab:manufacturer   "Mitsubishi Electric" ;
+    lab:model          "EHST20D-VM6D" ;
+    lab:nominalPowerKw "2.5"^^xsd:float ;
+    lab:maxPowerKw     "4.0"^^xsd:float ;
+    lab:maxFlowTempC   "60.0"^^xsd:float ;
+    lab:minFlowTempC   "20.0"^^xsd:float ;
+    lab:minCOP         "2.8"^^xsd:float ;
+    lab:hasComponent   lab:ecodan_01_compressor ,
+                       lab:ecodan_01_evaporator ,
+                       lab:ecodan_01_condenser ;
+    lab:hasOperatingMode lab:heating_mode , lab:dhw_mode , lab:standby_mode .
+
+lab:ecodan_01_compressor a lab:Compressor ; rdfs:label "Компресор EcoDan" .
+lab:ecodan_01_evaporator a lab:Evaporator ; rdfs:label "Випарник EcoDan" .
+lab:ecodan_01_condenser  a lab:Condenser  ; rdfs:label "Конденсатор EcoDan" .
