@@ -32,12 +32,19 @@ lab:hasSpec          a owl:ObjectProperty ;
                      rdfs:range  lab:TechnicalSpec .
 
 lab:nominalPowerKw   a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:maxPowerKw       a owl:DatatypeProperty ; rdfs:range xsd:float .
 lab:maxFlowTempC     a owl:DatatypeProperty ; rdfs:range xsd:float .
 lab:minFlowTempC     a owl:DatatypeProperty ; rdfs:range xsd:float .
 lab:minCOP           a owl:DatatypeProperty ; rdfs:range xsd:float .
-lab:maxPowerKw       a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:nominalCOP       a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:tankVolumeL      a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:weightKg         a owl:DatatypeProperty ; rdfs:range xsd:float .
+lab:powerSupplyV     a owl:DatatypeProperty ; rdfs:range xsd:integer .
+lab:refrigerant      a owl:DatatypeProperty ; rdfs:range xsd:string .
 lab:manufacturer     a owl:DatatypeProperty ; rdfs:range xsd:string .
 lab:model            a owl:DatatypeProperty ; rdfs:range xsd:string .
+lab:modelSeries      a owl:DatatypeProperty ; rdfs:range xsd:string .
+lab:modelVariant     a owl:DatatypeProperty ; rdfs:range xsd:string .
 
 # ─── Екземпляри ────────────────────────────────────────────────────────
 lab:heating_mode  a lab:OperatingMode ; rdfs:label "Обігрів" .

@@ -124,6 +124,22 @@ services:
     command: python3 analyzer/web_panel.py
     restart: unless-stopped
 
+  # ─── Диплом 2: PDF → онтологія (one-shot, запускати вручну) ────────
+  # Запуск:
+  #   docker compose --profile tools run --rm pdf_extractor \
+  #       --pdf ontology/BH79D188H02.pdf --device-id ehst20 \
+  #       --out ontology/extracted/ehst20.ttl
+  pdf_extractor:
+    build: .
+    image: lab-python:latest
+    container_name: lab-pdf-extractor
+    profiles: ["tools"]
+    volumes:
+      - ./ontology:/app/ontology
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    entrypoint: ["python3", "-m", "ontology.pdf_to_ontology.cli"]
+
 volumes:
   mosquitto_data:
   influx_data:

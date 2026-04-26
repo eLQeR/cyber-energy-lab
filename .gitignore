@@ -12,6 +12,9 @@ logs/
 analyzer/training_data.csv
 analyzer/anomaly_model.pkl
 
+ontology/.pdf_cache/
+ontology/*.pdf
+
 .DS_Store
 .idea/
 .vscode/
