@@ -75,12 +75,20 @@ def device_specs(device_id: str):
 @app.get("/device/<device_id>/expected-bounds")
 def expected_bounds(device_id: str):
     """Межі для детектора аномалій — використовує Диплом 3."""
+    # Fallbacks: if the explicit anomaly threshold isn't set, use the
+    # manufacturer's nominal value as a baseline (conservative).
     rows = sparql_query(f"""
         SELECT ?minCOP ?maxPower ?maxFlow ?minFlow WHERE {{
-            OPTIONAL {{ lab:{device_id} lab:minCOP       ?minCOP }}
-            OPTIONAL {{ lab:{device_id} lab:maxPowerKw   ?maxPower }}
-            OPTIONAL {{ lab:{device_id} lab:maxFlowTempC ?maxFlow }}
-            OPTIONAL {{ lab:{device_id} lab:minFlowTempC ?minFlow }}
+            OPTIONAL {{ lab:{device_id} lab:minCOP         ?minCOPExplicit }}
+            OPTIONAL {{ lab:{device_id} lab:nominalCOP     ?nomCOP }}
+            BIND(COALESCE(?minCOPExplicit, ?nomCOP) AS ?minCOP)
+
+            OPTIONAL {{ lab:{device_id} lab:maxPowerKw     ?maxPowerExplicit }}
+            OPTIONAL {{ lab:{device_id} lab:nominalPowerKw ?nomPower }}
+            BIND(COALESCE(?maxPowerExplicit, ?nomPower) AS ?maxPower)
+
+            OPTIONAL {{ lab:{device_id} lab:maxFlowTempC   ?maxFlow }}
+            OPTIONAL {{ lab:{device_id} lab:minFlowTempC   ?minFlow }}
         }}
     """)
     if not rows:

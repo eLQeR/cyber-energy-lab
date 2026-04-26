@@ -18,3 +18,4 @@ ontology/*.pdf
 .DS_Store
 .idea/
 .vscode/
+.claude/

@@ -74,6 +74,8 @@ services:
       FUSEKI_URL: http://fuseki:3030/lab
     ports:
       - "5002:5000"
+    volumes:
+      - ./ontology:/app/ontology
     command: python3 ontology/ontology_api.py
     restart: unless-stopped
 
