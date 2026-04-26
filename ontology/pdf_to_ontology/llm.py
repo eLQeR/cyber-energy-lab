@@ -1,8 +1,11 @@
 """Stage 4 — single LLM call with structured output.
 
-Uses Anthropic's messages.parse() so the response is validated against
-HeatPumpProfile automatically. One call per PDF — no chunking needed
-because we already filtered to ≤30 spec-dense pages.
+Uses Anthropic forced tool use with strict=True for guaranteed schema-valid
+JSON. This works on any anthropic SDK ≥ 0.34 (we ship 0.45). Switch to
+client.messages.parse() once we bump the SDK version.
+
+One call per PDF — no chunking needed because we already filtered to
+≤30 spec-dense pages (~25K tokens, well under the model's context).
 """
 from __future__ import annotations
 
@@ -18,7 +21,8 @@ SYSTEM_PROMPT = """You extract structured technical specifications from
 heat-pump manufacturer manuals.
 
 Read the provided manual excerpts (already filtered to specification-rich
-pages) and emit a single HeatPumpProfile JSON object.
+pages) and call the record_specs tool exactly once with the extracted
+HeatPumpProfile.
 
 Rules:
 1. Cite ONLY values stated explicitly in the text. Use null when a value
@@ -37,14 +41,28 @@ Rules:
 def extract_profile(text: str, model: str = "claude-opus-4-7") -> HeatPumpProfile:
     """Send filtered manual text to Claude, return validated profile."""
     client = anthropic.Anthropic()
-    log.info("Calling %s on %d chars of input", model, len(text))
 
-    response = client.messages.parse(
+    schema = HeatPumpProfile.model_json_schema()
+    # Anthropic strict mode requires `additionalProperties: false` on every
+    # object — Pydantic emits this only when extra="forbid" is set on the
+    # model (which we do in schema.py).
+
+    tool = {
+        "name": "record_specs",
+        "description": "Record extracted heat-pump specifications.",
+        "input_schema": schema,
+    }
+
+    log.info("Calling %s on %d chars (~%d tokens) of input",
+             model, len(text), len(text) // 4)
+
+    response = client.messages.create(
         model=model,
         max_tokens=4096,
         system=SYSTEM_PROMPT,
+        tools=[tool],
+        tool_choice={"type": "tool", "name": "record_specs"},
         messages=[{"role": "user", "content": text}],
-        output_format=HeatPumpProfile,
     )
 
     log.info(
@@ -53,4 +71,6 @@ def extract_profile(text: str, model: str = "claude-opus-4-7") -> HeatPumpProfil
         response.usage.output_tokens,
         getattr(response.usage, "cache_read_input_tokens", 0) or 0,
     )
-    return response.parsed_output
+
+    tool_use = next(b for b in response.content if b.type == "tool_use")
+    return HeatPumpProfile.model_validate(tool_use.input)

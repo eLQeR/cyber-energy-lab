@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class HeatPumpProfile(BaseModel):
@@ -17,6 +17,11 @@ class HeatPumpProfile(BaseModel):
     Cite ONLY values stated explicitly in the source text. Use null when
     the spec is not stated; do not infer from related values.
     """
+
+    # protected_namespaces: silences "model_*" Pydantic warning; we need
+    # those names to match the domain vocabulary.
+    # extra=forbid: required for Anthropic strict tool-use JSON schema.
+    model_config = ConfigDict(protected_namespaces=(), extra="forbid")
 
     manufacturer: str | None = Field(
         None, description="Manufacturer name, e.g. 'Mitsubishi Electric'"

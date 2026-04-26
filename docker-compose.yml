@@ -58,6 +58,8 @@ services:
       - fuseki
     environment:
       FUSEKI_URL: http://fuseki:3030/lab
+    volumes:
+      - ./ontology:/app/ontology
     command: python3 ontology/load_ontology.py
     restart: "no"
 
