@@ -113,9 +113,14 @@ services:
     restart: unless-stopped
 
   # ─── Диплом 3: edge-analyzer + локальна веб-панель ────────────────
+  # ВИНЕСЕНО в окремий compose-файл (docker-compose.pi.yml), щоб імітувати
+  # розгортання на Raspberry Pi. Запуск на тому ж хості:
+  #   docker compose -f docker-compose.pi.yml up -d
+  # Або з профілем "pi" для запуску в єдиному стеку:
   analyzer_panel:
     image: lab-python:latest
     container_name: lab-analyzer
+    profiles: ["pi-local"]   # не стартує без явного --profile pi-local
     depends_on:
       - mosquitto
       - ontology_api
