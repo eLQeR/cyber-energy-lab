@@ -11,7 +11,6 @@
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import sys
@@ -28,6 +27,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from shared.schemas import (
+    AlertPayload,
     MetricsMessage,
     StateMessage,
     TOPIC_METRICS_WILDCARD,
@@ -42,6 +42,7 @@ log = logging.getLogger("analyzer")
 MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 ONTOLOGY_API = os.getenv("ONTOLOGY_API", "http://localhost:5000")
+ALERTS_API   = os.getenv("ALERTS_API",   "http://localhost:5003")
 
 HERE = Path(__file__).parent
 bundle = joblib.load(HERE / "anomaly_model.pkl")
@@ -66,6 +67,10 @@ BOUNDS_CACHE: dict[str, dict] = {}
 BOUNDS_TTL_SEC = 300
 BOUNDS_FETCHED: dict[str, float] = {}
 
+# ─── Останній відомий стан кожного пристрою (для детекції *змін* стану) ──────
+LAST_STATE: dict[str, str] = {}
+LAST_STATE_LOCK = threading.Lock()
+
 
 def get_bounds(device_id: str) -> dict:
     now = time.time()
@@ -81,6 +86,49 @@ def get_bounds(device_id: str) -> dict:
         BOUNDS_CACHE[device_id] = {}
         BOUNDS_FETCHED[device_id] = now
     return BOUNDS_CACHE[device_id]
+
+
+# ─── Re-emission: щоб тривога не «застрягла», нагадуємо про неї періодично ──
+LAST_REMIND: dict[str, float] = {}
+REMIND_INTERVAL_SEC = int(os.getenv("REMIND_INTERVAL_SEC", "300"))
+
+
+def _should_remind(device_id: str) -> bool:
+    now = time.time()
+    if now - LAST_REMIND.get(device_id, 0) >= REMIND_INTERVAL_SEC:
+        LAST_REMIND[device_id] = now
+        return True
+    return False
+
+
+def forward_alert(state: StateMessage, metrics_dump: dict, bounds: dict) -> None:
+    """POST тривоги на центральний alerts_server.
+
+    Викликаємо ЛИШЕ при переході стану в warning/anomaly — щоб не засмічувати
+    канал на кожне нормальне повідомлення (раз на хвилину з monitoring).
+    """
+    if state.state not in ("warning", "anomaly"):
+        return
+    payload = AlertPayload(
+        device_id=state.device_id,
+        timestamp=state.timestamp,
+        severity=state.state,
+        anomaly_codes=state.anomalies,
+        explanation=state.explanation,
+        confidence=state.confidence,
+        metrics_snapshot=metrics_dump,
+        bounds_snapshot=bounds,
+    )
+    try:
+        requests.post(
+            f"{ALERTS_API}/api/alerts",
+            data=payload.model_dump_json(),
+            headers={"Content-Type": "application/json"},
+            timeout=3,
+        ).raise_for_status()
+    except requests.RequestException as exc:
+        log.warning("alerts_server unavailable (%s) — alert dropped (device=%s)",
+                    exc, state.device_id)
 
 
 def rule_based_checks(metrics: dict, bounds: dict) -> list[str]:
@@ -158,9 +206,25 @@ def on_message(client: mqtt.Client, _userdata, mqtt_msg: mqtt.MQTTMessage) -> No
         status.last_state = state.model_dump()
         status.updated_at = state.timestamp
 
+    # Реакція на зміну стану: пушимо тривогу в центральний alerts_server
+    # ТІЛЬКИ якщо щось вийшло за межі онтології (warning/anomaly).
+    with LAST_STATE_LOCK:
+        prev = LAST_STATE.get(state.device_id, "normal")
+        LAST_STATE[state.device_id] = state.state
+
+    state_changed = prev != state.state
+    is_problem    = state.state in ("warning", "anomaly")
+
+    # Шлемо при першому переході в проблемний стан — і потім ще раз кожні 5 хв,
+    # щоб тривога залишалася актуальною доки причину не усунуто.
+    should_forward = is_problem and (state_changed or _should_remind(state.device_id))
+    if should_forward:
+        forward_alert(state, incoming.metrics.model_dump(), get_bounds(state.device_id))
+
     log.info(
-        "%s → %s (%s) anomalies=%s",
+        "%s → %s (conf=%.2f) anomalies=%s%s",
         state.device_id, state.state, state.confidence, state.anomalies,
+        "  → ALERT FORWARDED" if should_forward else "",
     )
 
 

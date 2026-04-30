@@ -43,3 +43,27 @@ TOPIC_METRICS = "lab/equipment/{device_id}/metrics"
 TOPIC_STATE = "lab/equipment/{device_id}/state"
 TOPIC_METRICS_WILDCARD = "lab/equipment/+/metrics"
 TOPIC_STATE_WILDCARD = "lab/equipment/+/state"
+
+
+class AlertPayload(BaseModel):
+    """POST /api/alerts — Диплом 3 (edge-analyzer) → alerts_server.
+
+    Створюється тільки коли стан переходить у warning/anomaly. Не публікуємо
+    тривогу при кожному метричному повідомленні — тільки на зміну стану.
+    """
+    device_id: str
+    timestamp: str = Field(default_factory=utcnow_iso)
+    severity: Literal["warning", "anomaly"]
+    anomaly_codes: list[str] = Field(
+        description="Перелік порушень: cop_below_nominal, power_over_limit, ml_outlier, …",
+    )
+    explanation: str = ""
+    confidence: float = 1.0
+    metrics_snapshot: dict = Field(
+        default_factory=dict,
+        description="Метрики на момент детекції (Metrics.model_dump())",
+    )
+    bounds_snapshot: dict = Field(
+        default_factory=dict,
+        description="Межі з онтології, проти яких перевіряли (для аудиту)",
+    )

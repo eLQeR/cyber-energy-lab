@@ -112,20 +112,61 @@ services:
     command: python3 monitoring/mqtt_to_influx.py
     restart: unless-stopped
 
-  # ─── Диплом 3: edge-analyzer + веб-панель ─────────────────────────
+  # ─── Диплом 3: edge-analyzer + локальна веб-панель ────────────────
   analyzer_panel:
     image: lab-python:latest
     container_name: lab-analyzer
     depends_on:
       - mosquitto
       - ontology_api
+      - alerts_server
     environment:
       MQTT_BROKER: mosquitto
       MQTT_PORT: "1883"
       ONTOLOGY_API: http://ontology_api:5000
+      ALERTS_API:   http://alerts_server:5003
+      REMIND_INTERVAL_SEC: ${REMIND_INTERVAL_SEC:-300}
     ports:
       - "5001:5001"
     command: python3 analyzer/web_panel.py
+    restart: unless-stopped
+
+  # ─── Центральний сервер тривог + dashboard для інженера ────────────
+  alerts_server:
+    image: lab-python:latest
+    container_name: lab-alerts
+    depends_on:
+      - ontology_api
+      - influxdb
+    environment:
+      ONTOLOGY_API:  http://ontology_api:5000
+      ALERTS_PORT:   "5003"
+      ALERTS_DB:     /data/alerts.db
+      INFLUX_URL:    http://influxdb:8086
+      INFLUX_TOKEN:  lab-dev-token
+      INFLUX_ORG:    lab
+      INFLUX_BUCKET: metrics
+    ports:
+      - "5003:5003"
+    volumes:
+      - alerts_data:/data
+    command: python3 alerts_server/alerts_server.py
+    restart: unless-stopped
+
+  # ─── Диплом 1: синтетичний паблішер (для розробки analyzer) ────────
+  # У продакшені замінюється на collector, що тягне реальний MELCloud.
+  synthetic_publisher:
+    image: lab-python:latest
+    container_name: lab-synthetic
+    depends_on:
+      - mosquitto
+    environment:
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: "1883"
+      DEVICE_ID:  ${DEVICE_ID:-ecodan_01}
+      POLL_INTERVAL_SEC: ${POLL_INTERVAL_SEC:-60}
+    profiles: ["dev"]   # запускати: docker compose --profile dev up -d
+    command: python3 monitoring/synthetic_publisher.py --output mqtt
     restart: unless-stopped
 
   # ─── Диплом 2: PDF → онтологія (one-shot, запускати вручну) ────────
@@ -147,5 +188,6 @@ services:
 volumes:
   mosquitto_data:
   influx_data:
+  alerts_data:
   fuseki_data:
   grafana_data:

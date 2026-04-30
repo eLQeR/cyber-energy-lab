@@ -19,3 +19,7 @@ ontology/*.pdf
 .idea/
 .vscode/
 .claude/
+*.pdf
+*.docx
+*.png
+*.md
