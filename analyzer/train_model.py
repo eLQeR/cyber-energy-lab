@@ -1,9 +1,3 @@
-"""ДИПЛОМ 3 — навчання IsolationForest на нормальних даних.
-
-Запуск:
-    python generate_synthetic.py   # якщо ще не згенеровано
-    python train_model.py          # → anomaly_model.pkl
-"""
 from __future__ import annotations
 
 import logging
@@ -11,6 +5,7 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+#IsolationForest шукає аномалії, ізолюючи “дивні” точки швидше, ніж нормальні
 from sklearn.ensemble import IsolationForest
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

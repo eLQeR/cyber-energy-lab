@@ -1,5 +1,3 @@
-// Головна сторінка: stats, активні тривоги, картки пристроїв, історія.
-
 let lastAlertCount = 0;
 
 async function refresh() {
@@ -16,9 +14,8 @@ async function refresh() {
     renderDevices(devices);
     renderHistory(history);
 
-    // Звукове/візуальне сповіщення про нові тривоги
     if (activeAlerts.length > lastAlertCount) {
-      toast(`Нова тривога: ${activeAlerts[0].device_id} — ${activeAlerts[0].severity.toUpperCase()}`,
+      toast(`Нова тривога: ${activeAlerts[0].device_id} — ${severityText(activeAlerts[0].severity)}`,
             "danger");
     }
     lastAlertCount = activeAlerts.length;
@@ -54,15 +51,15 @@ function renderActiveAlerts(alerts) {
 
   root.innerHTML = alerts.map(a => `
     <div class="alert ${a.severity}">
-      <div class="severity">${a.severity}</div>
+      <div class="severity">${severityText(a.severity)}</div>
       <div class="body">
         <div class="device">
           <a href="/device/${esc(a.device_id)}">${esc(a.device_id)}</a>
         </div>
-        <div class="codes">${a.anomaly_codes.map(esc).join("  ·  ")}</div>
+        <div class="codes">${a.anomaly_codes.map(code => esc(anomalyCodeText(code))).join("  ·  ")}</div>
         <div class="meta">
-          ${esc(a.explanation || '')}  ·  ${fmtAge(a.raised_at)}  ·  conf=${(a.confidence ?? 0).toFixed(2)}
-        </div>
+  ${fmtAge(a.raised_at)}
+</div>
       </div>
       <div class="actions">
         <button class="primary" onclick="ackAlert(${a.id})">Прийняти</button>
@@ -89,12 +86,11 @@ function deviceCard(d) {
   const b = d.bounds  || {};
   const stale = d.stale ? "stale" : (d.current_state || "unknown");
 
-  // Прогрес-бари: показуємо metric / bound
   const bar = (label, val, max, lowGood = false) => {
     if (val == null || max == null) return "";
     const pct = Math.min(100, Math.max(0, val / max * 100));
     const cls = pct >= 95 ? "bad" : pct >= 80 ? "warn" : "";
-    const overflow = lowGood && val < max ? "bad" : "";  // напр. COP < minCOP
+    const overflow = lowGood && val < max ? "bad" : "";  
     return `
       <div class="bound-row">
         <div>${esc(label)}</div>
@@ -103,7 +99,6 @@ function deviceCard(d) {
       </div>`;
   };
 
-  // COP — особлива логіка: червоний коли val < min
   const copBar = () => {
     if (m.cop == null || b.min_cop == null) return "";
     const ratio = m.cop / b.min_cop;
@@ -125,8 +120,9 @@ function deviceCard(d) {
           <div class="model">${esc(d.id)}${d.model ? ' · ' + esc(d.model) : ''}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
-          ${d.active_alerts ? `<span class="alert-count">${d.active_alerts}</span>` : ''}
-          <span class="state-badge ${stale}">${d.stale ? 'STALE' : (d.current_state || 'unknown')}</span>
+          ${d.active_alerts ? `<span class="alert-count">${d.active_alerts}</span>` : ''}<span class="state-badge ${stale}">
+  ${d.stale ? '' : stateText(d.current_state || "unknown")}
+</span>
         </div>
       </div>
 
@@ -170,12 +166,11 @@ function renderHistory(alerts) {
     <div class="timeline-item">
       <div class="when">${fmtTime(a.raised_at)}</div>
       <div class="what">
-        <span style="color:${severityColor(a.severity)};font-weight:600;">${a.severity.toUpperCase()}</span>
-        ·
-        <a href="/device/${esc(a.device_id)}">${esc(a.device_id)}</a>
-        ${a.status === 'resolved' ? '<span style="color:var(--normal);font-size:11px;"> · RESOLVED</span>' : ''}
-        ${a.status === 'acknowledged' ? '<span style="color:var(--warning);font-size:11px;"> · ACK</span>' : ''}
-        <div class="codes">${a.anomaly_codes.map(esc).join('  ·  ')}</div>
+        <span style="color:${severityColor(a.severity)};font-weight:600;">${severityText(a.severity)}</span>
+·
+<a href="/device/${esc(a.device_id)}">${esc(a.device_id)}</a>
+<span style="color:var(--normal);font-size:11px;"> · ${statusText(a.status)}</span>
+<div class="codes">${a.anomaly_codes.map(code => esc(anomalyCodeText(code))).join('  ·  ')}</div>
       </div>
     </div>
   `).join("");

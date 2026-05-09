@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8">
-<title>Edge Analyzer — Стан обладнання</title>
+<title>EnergyLab</title>
 <style>
   body { font-family: system-ui, sans-serif; margin: 2rem; background: #0f1419; color: #e6e6e6; }
   h1 { margin-top: 0; }
@@ -58,7 +58,7 @@ async function refresh() {
         <table>
           <tr><td>Потужність</td><td>${(m.power_kw ?? 0).toFixed(2)} кВт</td>
               <td>Подача</td><td>${(m.flow_temp_c ?? 0).toFixed(1)} °C</td></tr>
-          <tr><td>Зворотка</td><td>${(m.return_temp_c ?? 0).toFixed(1)} °C</td>
+          <tr><td>Зворотна температура</td><td>${(m.return_temp_c ?? 0).toFixed(1)} °C</td>
               <td>COP</td><td>${(m.cop ?? 0).toFixed(2)}</td></tr>
           <tr><td>Режим</td><td>${m.mode || '—'}</td>
               <td>Надвір</td><td>${(m.outdoor_temp_c ?? 0).toFixed(1)} °C</td></tr>

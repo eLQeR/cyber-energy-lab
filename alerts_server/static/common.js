@@ -36,6 +36,57 @@ function severityColor(sev) {
   return { warning: "var(--warning)", anomaly: "var(--anomaly)" }[sev] || "var(--text-dim)";
 }
 
+function severityText(sev) {
+  return {
+    warning: "ПОПЕРЕДЖЕННЯ",
+    anomaly: "АНОМАЛІЯ"
+  }[sev] || "НЕВІДОМО";
+}
+
+function statusText(status) {
+  return {
+    active: "АКТИВНА",
+    acknowledged: "ПІДТВЕРДЖЕНО",
+    resolved: "УСУНЕНО"
+  }[status] || "ВИРІШЕНО";
+}
+
+function stateText(state, stale = false) {
+  if (stale) return "НЕМАЄ ОНОВЛЕНЬ";
+  return {
+    normal: "НОРМА",
+    warning: "ПОПЕРЕДЖЕННЯ",
+    anomaly: "АНОМАЛІЯ",
+    unknown: "НЕВІДОМО"
+  }[state] || "НЕВІДОМО";
+}
+
+function anomalyCodeText(code) {
+  const text = String(code ?? "");
+
+  if (text.startsWith("ml_outlier")) {
+    return "виявлено відхилення у роботі системи";
+  }
+
+  if (text.startsWith("cop_below_nominal")) {
+    return "COP нижче норми";
+  }
+
+  if (text.startsWith("power_over_limit")) {
+    return "перевищено потужність";
+  }
+
+  if (text.startsWith("flow_temp_over_limit")) {
+    return "температура подачі вище норми";
+  }
+
+  if (text.startsWith("flow_temp_under_limit")) {
+    return "температура подачі нижче норми";
+  }
+
+  return text;
+}
+
 function toast(text, kind = "info") {
   const area = document.getElementById("toast-area");
   if (!area) return;
@@ -54,13 +105,11 @@ function setLive(connected) {
   text.textContent = connected ? "оновлення кожні 5 с" : "немає з'єднання";
 }
 
-// Годинник у топ-барі
 setInterval(() => {
   const c = document.getElementById("now-clock");
   if (c) c.textContent = new Date().toLocaleTimeString("uk-UA", { hour12: false });
 }, 1000);
 
-// Утиліта: безпечне формування HTML (escape)
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (m) =>
     ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[m]);

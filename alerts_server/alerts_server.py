@@ -1,32 +1,3 @@
-"""Сервер тривог: приймає alerts від edge-analyzer та віддає їх інженерові у веб-UI.
-
-Архітектура:
-  edge-analyzer (Raspberry Pi) ── HTTP POST /api/alerts ──► alerts_server (FastAPI)
-                                                            │
-                                                            ├─ SQLite (alerts.db)
-                                                            └─ Web Dashboard /
-                                                               (read-only для інженера)
-
-Запуск:
-  uvicorn alerts_server.alerts_server:app --host 0.0.0.0 --port 5003 --reload
-  # або:
-  python alerts_server/alerts_server.py            # підніме uvicorn локально
-
-REST API:
-  POST   /api/alerts                    — створити нову тривогу
-  GET    /api/alerts                    — список (?status=active|acknowledged|resolved&device_id=...)
-  GET    /api/alerts/<id>               — деталі
-  POST   /api/alerts/<id>/acknowledge   — інженер прийняв до уваги
-  POST   /api/alerts/<id>/resolve       — інженер усунув причину
-  GET    /api/devices                   — поточний стан кожного пристрою (з онтології)
-  GET    /api/devices/<id>              — деталі пристрою + остання тривога
-  GET    /api/stats                     — зведена статистика (для cards у dashboard)
-  GET    /docs                          — OpenAPI / Swagger UI (FastAPI built-in)
-
-Web UI:
-  GET    /                              — dashboard
-  GET    /device/<device_id>            — деталі обладнання
-"""
 from __future__ import annotations
 
 import json
@@ -54,15 +25,13 @@ from shared.schemas import AlertPayload, utcnow_iso
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("alerts_server")
 
-# ─── Конфігурація ─────────────────────────────────────────────────────────────
+
 DB_PATH      = Path(os.getenv("ALERTS_DB", str(Path(__file__).parent / "alerts.db")))
 ONTOLOGY_API = os.getenv("ONTOLOGY_API", "http://localhost:5000")
 PORT         = int(os.getenv("ALERTS_PORT", "5003"))
 
-# Скільки секунд тривога вважається "active", якщо не було оновлень
 STALE_AFTER_SEC = int(os.getenv("STALE_AFTER_SEC", "600"))
 
-# InfluxDB — джерело історії метрик для графіків на сторінці пристрою
 INFLUX_URL    = os.getenv("INFLUX_URL",    "http://localhost:8086")
 INFLUX_TOKEN  = os.getenv("INFLUX_TOKEN",  "lab-dev-token")
 INFLUX_ORG    = os.getenv("INFLUX_ORG",    "lab")
@@ -72,7 +41,7 @@ HERE      = Path(__file__).parent
 templates = Jinja2Templates(directory=str(HERE / "templates"))
 
 app = FastAPI(
-    title="Engineer Alerts Dashboard",
+    title="Панель моніторингу тривог EnergyLab",
     description="Edge-analyzer → центральний сервер тривог для лабораторії кіберенергетичних систем.",
     version="1.0.0",
 )
@@ -80,8 +49,6 @@ app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 
 _db_lock = threading.Lock()
 
-
-# ─── База даних ───────────────────────────────────────────────────────────────
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS alerts (
@@ -131,13 +98,9 @@ def init_db() -> None:
     log.info("DB ready at %s", DB_PATH)
 
 
-# ─── Pydantic-моделі для UI-only ендпоінтів ──────────────────────────────────
-
 class AcknowledgeBody(BaseModel):
     user: str = "engineer"
 
-
-# ─── Допоміжні ────────────────────────────────────────────────────────────────
 
 def _row_to_alert(row: sqlite3.Row) -> dict:
     d = dict(row)
@@ -145,11 +108,11 @@ def _row_to_alert(row: sqlite3.Row) -> dict:
     d["metrics_snapshot"] = json.loads(d["metrics_snapshot"])
     d["bounds_snapshot"]  = json.loads(d["bounds_snapshot"])
     if d["resolved_at"]:
-        d["status"] = "resolved"
+        d["status"] = "усунено"
     elif d["acknowledged_at"]:
-        d["status"] = "acknowledged"
+        d["status"] = "підтверджено"
     else:
-        d["status"] = "active"
+        d["status"] = "активна"
     return d
 
 
@@ -182,11 +145,8 @@ def fetch_ontology_bounds(device_id: str) -> dict:
         return {}
 
 
-# ─── REST: тривоги ────────────────────────────────────────────────────────────
-
 @app.post("/api/alerts", status_code=201, summary="Створити нову тривогу (від edge-analyzer)")
 def create_alert(payload: AlertPayload):
-    """analyzer публікує сюди при переході стану в warning / anomaly."""
     with _db_lock, db() as conn:
         cur = conn.execute(
             """INSERT INTO alerts
@@ -281,8 +241,6 @@ def resolve_alert(alert_id: int):
             raise HTTPException(404, "Alert not found or already resolved")
     return {"id": alert_id, "status": "resolved"}
 
-
-# ─── REST: пристрої ──────────────────────────────────────────────────────────
 
 @app.get("/api/devices", summary="Список пристроїв з онтології + поточний стан")
 def list_devices():

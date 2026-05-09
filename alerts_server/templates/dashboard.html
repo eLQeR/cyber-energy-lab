@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<!-- ─── Stats row ─────────────────────────────────────────────── -->
+
 <section class="stats-grid" id="stats-grid">
   <div class="stat-card danger">
     <div class="label">Активні тривоги</div>
@@ -24,19 +24,17 @@
   </div>
 </section>
 
-<!-- ─── Active alerts ─────────────────────────────────────────── -->
 <section class="section">
   <div class="section-header">
-    <h2>🚨 Активні тривоги</h2>
+    <h2>Активні тривоги</h2>
     <span class="muted" id="alerts-count" style="font-size:12px;color:var(--text-muted);"></span>
   </div>
   <div id="active-alerts" class="alerts-list"></div>
 </section>
 
-<!-- ─── Devices grid ──────────────────────────────────────────── -->
 <section class="section">
   <div class="section-header">
-    <h2>🏭 Стан обладнання</h2>
+    <h2>Стан обладнання</h2>
     <span style="font-size:12px;color:var(--text-muted);">
       Натисніть на картку для деталей
     </span>
@@ -44,9 +42,8 @@
   <div id="devices-grid" class="devices-grid"></div>
 </section>
 
-<!-- ─── Recent alerts (history) ────────────────────────────────── -->
 <section class="section">
-  <h2>📜 Останні події (історія)</h2>
+  <h2>Історія подій</h2>
   <div class="panel" style="padding:0;">
     <div id="history-timeline" class="timeline" style="padding:8px 18px;"></div>
   </div>

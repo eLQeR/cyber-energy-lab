@@ -1,14 +1,3 @@
-"""ДИПЛОМ 3 — Edge-analyzer.
-
-Крутиться на Raspberry Pi поруч з обладнанням:
-  1. Читає метрики з MQTT (Диплом 1 publisher).
-  2. Запитує очікувані межі з онтологічного API (Диплом 2).
-  3. Пропускає через IsolationForest.
-  4. Поєднує ML-вердикт з правилами на межах з онтології.
-  5. Публікує стан у MQTT і тримає кеш останнього стану (для веб-панелі).
-
-Аргумент «edge»: усе це робиться локально, без інтернету, затримка <100мс.
-"""
 from __future__ import annotations
 
 import logging
@@ -49,8 +38,6 @@ bundle = joblib.load(HERE / "anomaly_model.pkl")
 MODEL = bundle["model"]
 FEATURES = bundle["features"]
 
-
-# ─── Кеш останніх станів для веб-панелі ────────────────────────────────
 @dataclass
 class DeviceStatus:
     device_id: str
@@ -61,13 +48,9 @@ class DeviceStatus:
 
 STATE_CACHE: dict[str, DeviceStatus] = {}
 STATE_LOCK = threading.Lock()
-
-# ─── Кеш очікуваних меж з онтології (щоб не бити API на кожне повідомлення)
 BOUNDS_CACHE: dict[str, dict] = {}
 BOUNDS_TTL_SEC = 300
 BOUNDS_FETCHED: dict[str, float] = {}
-
-# ─── Останній відомий стан кожного пристрою (для детекції *змін* стану) ──────
 LAST_STATE: dict[str, str] = {}
 LAST_STATE_LOCK = threading.Lock()
 
@@ -87,8 +70,6 @@ def get_bounds(device_id: str) -> dict:
         BOUNDS_FETCHED[device_id] = now
     return BOUNDS_CACHE[device_id]
 
-
-# ─── Re-emission: щоб тривога не «застрягла», нагадуємо про неї періодично ──
 LAST_REMIND: dict[str, float] = {}
 REMIND_INTERVAL_SEC = int(os.getenv("REMIND_INTERVAL_SEC", "300"))
 
@@ -102,11 +83,6 @@ def _should_remind(device_id: str) -> bool:
 
 
 def forward_alert(state: StateMessage, metrics_dump: dict, bounds: dict) -> None:
-    """POST тривоги на центральний alerts_server.
-
-    Викликаємо ЛИШЕ при переході стану в warning/anomaly — щоб не засмічувати
-    канал на кожне нормальне повідомлення (раз на хвилину з monitoring).
-    """
     if state.state not in ("warning", "anomaly"):
         return
     payload = AlertPayload(
@@ -132,8 +108,6 @@ def forward_alert(state: StateMessage, metrics_dump: dict, bounds: dict) -> None
 
 
 def rule_based_checks(metrics: dict, bounds: dict) -> list[str]:
-    """Явні правила з онтології — дають інтерпретовані аномалії
-    поруч зі статистичним вердиктом моделі."""
     anomalies = []
     if bounds.get("min_cop") is not None and metrics.get("cop") is not None:
         if metrics["cop"] < bounds["min_cop"]:
@@ -158,8 +132,8 @@ def analyze(msg: MetricsMessage) -> StateMessage:
         m.outdoor_temp_c if m.outdoor_temp_c is not None else 0.0,
         m.cop if m.cop is not None else 3.5,
     ]])
-    prediction = int(MODEL.predict(feat)[0])      # 1 = норма, -1 = викид
-    score = float(MODEL.decision_function(feat)[0])  # більше = нормальніше
+    prediction = int(MODEL.predict(feat)[0])     
+    score = float(MODEL.decision_function(feat)[0])  
 
     bounds = get_bounds(msg.device_id)
     rule_anomalies = rule_based_checks(m.model_dump(), bounds)
@@ -187,8 +161,6 @@ def analyze(msg: MetricsMessage) -> StateMessage:
         explanation=explanation,
     )
 
-
-# ─── MQTT glue ─────────────────────────────────────────────────────────
 def on_message(client: mqtt.Client, _userdata, mqtt_msg: mqtt.MQTTMessage) -> None:
     try:
         incoming = MetricsMessage.model_validate_json(mqtt_msg.payload)
@@ -206,8 +178,6 @@ def on_message(client: mqtt.Client, _userdata, mqtt_msg: mqtt.MQTTMessage) -> No
         status.last_state = state.model_dump()
         status.updated_at = state.timestamp
 
-    # Реакція на зміну стану: пушимо тривогу в центральний alerts_server
-    # ТІЛЬКИ якщо щось вийшло за межі онтології (warning/anomaly).
     with LAST_STATE_LOCK:
         prev = LAST_STATE.get(state.device_id, "normal")
         LAST_STATE[state.device_id] = state.state
@@ -215,8 +185,6 @@ def on_message(client: mqtt.Client, _userdata, mqtt_msg: mqtt.MQTTMessage) -> No
     state_changed = prev != state.state
     is_problem    = state.state in ("warning", "anomaly")
 
-    # Шлемо при першому переході в проблемний стан — і потім ще раз кожні 5 хв,
-    # щоб тривога залишалася актуальною доки причину не усунуто.
     should_forward = is_problem and (state_changed or _should_remind(state.device_id))
     if should_forward:
         forward_alert(state, incoming.metrics.model_dump(), get_bounds(state.device_id))

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}Engineer Dashboard — Кіберенергетична лабораторія{% endblock %}</title>
+  <title>{% block title %}Панель моніторингу — EnergyLab{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="icon" href="data:image/svg+xml,
     <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='20' font-size='22'>⚡</text></svg>">
@@ -11,11 +11,11 @@
 <body>
   <div class="topbar">
     <div class="brand">
-      <div class="logo">⚡</div>
+      <div class="logo">EL</div>
       <div>
-        <div>Кіберенергетична лабораторія</div>
+        <div>EnergyLab</div>
         <div style="font-size:11px;color:var(--text-muted);font-weight:400;">
-          Панель інженера · Edge-аналіз обладнання
+          Панель інженера - EnergyLab
         </div>
       </div>
     </div>
@@ -23,7 +23,6 @@
       <span><span id="live-dot" class="live-dot"></span>
             <span id="live-status">оновлення кожні 5 с</span></span>
       <span id="now-clock"></span>
-      <a href="/">Головна</a>
       <a href="/docs" title="OpenAPI / Swagger">API</a>
     </div>
   </div>

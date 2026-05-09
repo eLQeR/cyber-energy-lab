@@ -136,7 +136,7 @@ async function refresh() {
 
     const stale = d.stale;
     const stEl  = document.getElementById("dev-state");
-    stEl.textContent = stale ? "STALE" : (d.current_state || "unknown").toUpperCase();
+    stEl.textContent = stateText(d.current_state || "unknown", stale);
     stEl.className   = `state-badge ${stale ? 'stale' : (d.current_state || 'unknown')}`;
 
     renderMetrics(d.metrics);
@@ -237,10 +237,9 @@ function renderTimeline(alerts) {
     <div class="timeline-item">
       <div class="when">${fmtTime(a.raised_at)}</div>
       <div class="what">
-        <span style="color:${severityColor(a.severity)};font-weight:600;">${a.severity.toUpperCase()}</span>
-        ${a.status === 'resolved' ? '<span style="color:var(--normal);font-size:11px;"> · RESOLVED</span>' : ''}
-        ${a.status === 'acknowledged' ? '<span style="color:var(--warning);font-size:11px;"> · ACK</span>' : ''}
-        <div class="codes">${a.anomaly_codes.map(esc).join('  ·  ')}</div>
+        <span style="color:${severityColor(a.severity)};font-weight:600;">${severityText(a.severity)}</span>
+<span style="color:var(--normal);font-size:11px;"> · ${statusText(a.status)}</span>
+<div class="codes">${a.anomaly_codes.map(code => esc(anomalyCodeText(code))).join('  ·  ')}</div>
         <div style="font-size:11px;color:var(--text-dim);">${esc(a.explanation || '')}</div>
       </div>
     </div>

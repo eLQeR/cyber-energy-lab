@@ -1,18 +1,13 @@
-"""ДИПЛОМ 3 — Веб-панель стану обладнання.
-
-Показує поточний стан кожного пристрою, який публікує analyzer.
-Запускати ПІСЛЯ analyzer.py — або цей файл сам підніме analyzer у треді.
-"""
 from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 
+from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template
 
-import analyzer  # той самий модуль — ми беремо STATE_CACHE звідти
+import analyzer  
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -20,7 +15,6 @@ log = logging.getLogger("web_panel")
 
 app = Flask(__name__, template_folder=str(Path(__file__).parent / "templates"))
 
-# запускаємо analyzer у фоні, щоб панель могла бути одним процесом
 if os.getenv("PANEL_START_ANALYZER", "1") == "1":
     analyzer.start(block=False)
 
